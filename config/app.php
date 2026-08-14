@@ -59,13 +59,41 @@ return [
     | Application Timezone
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | BİLİNÇLİ OLARAK "UTC" SABİT BIRAKILDI — APP_TIMEZONE'a BAĞLAMAYIN.
+    |
+    | Bu değer PHP'nin date_default_timezone_set()'ini ve dolayısıyla
+    | Eloquent'in now()/Carbon çıktısını belirler. candles/signals
+    | tablolarındaki tüm sütunlar "timestamp without time zone" ve UTC
+    | wall-clock olarak saklanıyor (Node ingestion servisi de aynı şekilde
+    | UTC yazıyor — bkz. ingestion/src/db.js). Bu değer Asia/Ashgabat gibi
+    | bir yerel saat dilimine çevrilirse:
+    |   - now() yerel saati döndürür ama DB'ye hâlâ UTC etiketiyle yazılır
+    |   - Backtest/optimize'daki whereBetween(opened_at, [now()-Xgün, now()])
+    |     pencereleri 5 saat kayar (Node'un yazdığı gerçek UTC candle'larla
+    |     karşılaştırıldığında) — daha önce Redis prefix ve Node Date
+    |     serialization'da yaşanan "UTC uyumsuzluğu" bug'larıyla aynı sınıf.
+    |
+    | Kullanıcıya GÖSTERİLECEK yerel saat için 'display_timezone' (aşağıda)
+    | kullanılır — APP_TIMEZONE oraya bağlı.
     |
     */
 
     'timezone' => 'UTC',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Display Timezone (kullanıcıya gösterim için)
+    |--------------------------------------------------------------------------
+    |
+    | DB'de/Carbon'da her şey UTC kalır; bu değer sadece insan tarafından
+    | okunacak çıktılarda (Telegram mesajları, sunucu tarafında formatlanan
+    | tarihler) ve frontend'e paylaşılan prop olarak kullanılır.
+    | bkz. app/Http/Middleware/HandleInertiaRequests.php ve
+    | app/Services/Telegram/TelegramNotifier.php.
+    |
+    */
+
+    'display_timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

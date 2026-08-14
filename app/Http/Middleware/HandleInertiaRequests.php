@@ -34,6 +34,13 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+            ],
+            // Backend'de her şey UTC saklanır (bkz. config/app.php); frontend
+            // tarih/saat gösterirken bunu kullanarak açıkça Asia/Ashgabat'a
+            // çevirir (tarayıcının kendi saat dilimine güvenmek yerine).
+            'displayTimezone' => config('app.display_timezone'),
         ];
     }
 }

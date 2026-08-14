@@ -1,58 +1,184 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# XAU/USD Signal Bot
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel + Inertia.js + Vue 3 tabanlı, XAU/USD (altın) için otomatik sinyal üreten ve Telegram'a bildirim gönderen sistem.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🖥️ Yeni Bilgisayarda Kurulum (Sıfırdan)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Bu projeyi başka bir bilgisayarda `git clone` ile aldığında aşağıdaki adımları sırayla takip et.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 1. Sistem Bağımlılıklarını Kur
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
+**Arch/CachyOS için:**
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+sudo pacman -S php php-pgsql postgresql redis nodejs npm composer git
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+**Ubuntu/Debian için:**
+```bash
+sudo apt install php php-pgsql postgresql redis-server nodejs npm composer git
+```
 
-## Contributing
+Kontrol et:
+```bash
+php -v
+php -m | grep pgsql   # pdo_pgsql ve pgsql görünmeli
+node -v
+composer -V
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 2. Servisleri Başlat
 
-## Code of Conduct
+```bash
+sudo systemctl enable --now postgresql
+sudo systemctl enable --now redis
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 3. Projeyi Klonla
 
-## Security Vulnerabilities
+```bash
+git clone https://github.com/The-Suhan/Signal-Bot.git
+cd Signal-Bot
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 4. Bağımlılıkları Kur
 
-## License
+```bash
+composer install
+npm install
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### 5. PostgreSQL Veritabanını Oluştur
+
+```bash
+sudo -u postgres psql
+```
+
+İçinde:
+```sql
+CREATE DATABASE xauusd_signal;
+ALTER USER postgres PASSWORD 'senin_sifren';
+\q
+```
+
+### 6. `.env` Dosyasını Oluştur
+
+```bash
+cp .env.example .env
+php artisan key:generate
+nano .env
+```
+
+Aşağıdaki bölümü `.env` içinde doldur — key'leri nereden alacağını aşağıdaki **"Gerekli Key'ler"** bölümünde bulacaksın:
+
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=xauusd_signal
+DB_USERNAME=postgres
+DB_PASSWORD=senin_sifren
+
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+CACHE_STORE=redis
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis
+
+TWELVEDATA_API_KEY=
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+
+### 7. Migration'ları Çalıştır
+
+```bash
+php artisan migrate
+```
+
+### 8. Dev Sunucularını Başlat
+
+İki ayrı terminalde:
+```bash
+php artisan serve
+```
+```bash
+npm run dev
+```
+
+Tarayıcıda `127.0.0.1:8000` adresini aç.
+
+---
+
+## 🔑 Gerekli Key'ler — Nereden Alınır
+
+| Key | Nereden | Nasıl Alınır |
+|---|---|---|
+| `TWELVEDATA_API_KEY` | https://twelvedata.com/pricing | Free plan → "Get free API key" → email ile kayıt ol (kart istemez) → Dashboard'da API key hazır görünür |
+| `TELEGRAM_BOT_TOKEN` | Telegram'da **@BotFather** | `/newbot` yaz → isim ve username belirle → dönen token'ı kopyala |
+| `TELEGRAM_CHAT_ID` | Kendi Telegram hesabın | Aşağıdaki "Chat ID Alma" adımlarını izle |
+
+### Telegram Chat ID Alma
+
+1. Telegram'da kendi botunu bul (username'i BotFather'dan aldığın isim)
+2. Bota `/start` yaz ve gönder
+3. Tarayıcıda şu adresi aç (kendi bot token'ınla):
+   ```
+   https://api.telegram.org/bot<BOT_TOKEN>/getUpdates
+   ```
+4. Dönen JSON içinde `"chat":{"id":XXXXXXXXX,...}` kısmındaki sayı senin chat_id'n
+
+---
+
+## ⚠️ Önemli Notlar
+
+- **Token'ları asla GitHub'a commit etme** — `.env` dosyası `.gitignore` içinde olmalı (varsayılan Laravel kurulumunda zaten öyle)
+- **PostgreSQL şifresini unutma** — bir yere güvenli şekilde not al (şifre yöneticisi önerilir)
+- Git push için GitHub artık şifre kabul etmiyor, **Personal Access Token (classic, `repo` scope)** kullanman gerekiyor: https://github.com/settings/tokens/new?scopes=repo
+- SSH key kurulumu yaparsan token girmek zorunda kalmazsın (isteğe bağlı, kalıcı çözüm):
+  ```bash
+  ssh-keygen -t ed25519 -C "email@ornek.com"
+  cat ~/.ssh/id_ed25519.pub   # çıkan key'i GitHub → Settings → SSH keys'e ekle
+  git remote set-url origin git@github.com:The-Suhan/Signal-Bot.git
+  ```
+
+---
+
+## 📁 Proje Yapısı
+
+```
+Signal-Bot/
+├── app/
+│   ├── Http/Controllers/     # Laravel controller'lar
+│   └── Models/                # Eloquent modeller
+├── database/
+│   └── migrations/            # candles, strategies, backtests, signals tabloları
+├── resources/
+│   └── js/
+│       ├── Pages/              # Inertia/Vue sayfaları
+│       └── Components/         # Vue bileşenleri
+├── ingestion/                  # Twelve Data WebSocket → Redis ingestion servisi (Node.js)
+└── .env                        # Ortam değişkenleri (repo'ya dahil değil)
+```
+
+---
+
+## 🗄️ Veritabanı Şeması
+
+- **candles**: symbol, timeframe, open, high, low, close, volume, opened_at
+- **strategies**: name, class, parameters (json), is_active
+- **backtests**: strategy_id, period_start, period_end, win_rate, expectancy, max_drawdown, total_signals, wins, losses
+- **signals**: strategy_id, symbol, direction (buy/sell), entry_price, sl_price, tp_price, sl_pips (60), tp_pips (min 100), confidence_pct, status (pending/triggered/closed_tp/closed_sl/expired), expected_entry_at, triggered_at, closed_at
+
+---
+
+## 🛠️ Kullanılan Teknolojiler
+
+- **Backend**: Laravel 13, PHP 8.5
+- **Frontend**: Vue 3 + Inertia.js + Tailwind CSS
+- **Veritabanı**: PostgreSQL 18
+- **Cache/Queue**: Redis
+- **Fiyat Verisi**: Twelve Data API (WebSocket + REST)
+- **Bildirim**: Telegram Bot API (irazasyed/telegram-bot-sdk)

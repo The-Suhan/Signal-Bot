@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    'telegram' => [
+        // Bot token'ı zaten config/telegram.php (irazasyed/telegram-bot-sdk) içinde;
+        // chat_id paketin kendi config dosyasına ait olmadığı için burada tutuluyor.
+        'chat_id' => env('TELEGRAM_CHAT_ID'),
+    ],
+
+    'market_data' => [
+        'symbol' => env('PRICE_SYMBOL', 'XAUUSD'),
+        // ingestion/ servisinin son fiyatı yazdığı Redis anahtarı — ingestion/.env
+        // içindeki REDIS_LAST_PRICE_KEY ile birebir aynı olmalı.
+        'last_price_key' => env('PRICE_REDIS_LAST_KEY', 'price:XAUUSD:last'),
+    ],
+
 ];
