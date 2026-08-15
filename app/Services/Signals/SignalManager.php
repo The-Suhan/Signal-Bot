@@ -85,6 +85,7 @@ class SignalManager
 
             if ($touchedEntry) {
                 $signal->update(['status' => 'triggered', 'triggered_at' => now()]);
+                Log::info("Sinyal #{$signal->id} entry'ye değindi -> TRIGGERED (fiyat={$lastPrice}).");
                 $this->notifier->signalTriggered($signal->fresh());
 
                 return;
@@ -149,6 +150,7 @@ class SignalManager
                 // backtest motoruyla aynı muhafazakâr kural.
                 if ($hitSl) {
                     $signal->update(['status' => 'closed_sl', 'closed_at' => now()]);
+                    Log::info("Sinyal #{$signal->id} SL'ye değindi -> CLOSED_SL (fiyat={$lastPrice}, sl={$signal->sl_price}).");
                     $this->notifier->signalClosedSl($signal->fresh());
 
                     return;
@@ -160,6 +162,7 @@ class SignalManager
 
                 if ($hitTp) {
                     $signal->update(['status' => 'closed_tp', 'closed_at' => now()]);
+                    Log::info("Sinyal #{$signal->id} TP'ye değindi -> CLOSED_TP (fiyat={$lastPrice}, tp={$signal->tp_price}).");
                     $this->notifier->signalClosedTp($signal->fresh());
                 }
             });

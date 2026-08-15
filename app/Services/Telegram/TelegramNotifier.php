@@ -4,7 +4,6 @@ namespace App\Services\Telegram;
 
 use App\Models\Signal;
 use Illuminate\Support\Facades\Log;
-use Telegram\Bot\Exceptions\TelegramSDKException;
 use Telegram\Bot\Laravel\Facades\Telegram;
 
 /**
@@ -86,6 +85,12 @@ class TelegramNotifier
         $this->send($text);
     }
 
+    /** Geçici ağ hatalarında (örn. "Connection reset by peer") denenecek toplam deneme sayısı. */
+    private const MAX_ATTEMPTS = 3;
+
+    /** Denemeler arası bekleme (ms), her denemede katlanarak artar. */
+    private const RETRY_BACKOFF_MS = 400;
+
     private function send(string $text): void
     {
         $chatId = config('services.telegram.chat_id');
@@ -96,14 +101,31 @@ class TelegramNotifier
             return;
         }
 
-        try {
-            Telegram::sendMessage([
-                'chat_id' => $chatId,
-                'text' => $text,
-                'parse_mode' => 'Markdown',
-            ]);
-        } catch (TelegramSDKException $e) {
-            Log::error('Telegram mesaj gönderilemedi: '.$e->getMessage());
+        // Tek seferlik ağ hıçkırıklarında (DNS, bağlantı reset vb.) sinyal
+        // state machine'i doğru çalışsa bile bildirim sessizce kayboluyordu
+        // (bkz. #10 olayı: "Recv failure: Connection reset by peer"). Bu
+        // yüzden birkaç kısa denemeyle tekrar deniyoruz; hepsi başarısız
+        // olursa yine de sadece loglanır — sinyal akışı asla kesilmez.
+        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
+            try {
+                Telegram::sendMessage([
+                    'chat_id' => $chatId,
+                    'text' => $text,
+                    'parse_mode' => 'Markdown',
+                ]);
+
+                return;
+            } catch (\Throwable $e) {
+                $isLastAttempt = $attempt === self::MAX_ATTEMPTS;
+
+                Log::{$isLastAttempt ? 'error' : 'warning'}(
+                    "Telegram mesaj gönderilemedi (deneme {$attempt}/".self::MAX_ATTEMPTS.'): '.$e->getMessage()
+                );
+
+                if (! $isLastAttempt) {
+                    usleep(self::RETRY_BACKOFF_MS * 1000 * $attempt);
+                }
+            }
         }
     }
 

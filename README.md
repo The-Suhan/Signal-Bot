@@ -144,6 +144,62 @@ Tarayıcıda `127.0.0.1:8000` adresini aç.
   git remote set-url origin git@github.com:The-Suhan/Signal-Bot.git
   ```
 
+### 🔴 KRİTİK: Bilgisayar Uyku Moduna Geçmemeli
+
+**Sistemin çalıştığı laptop/PC hep açık ve uyanık kalmalı — ne boşta kalınca ne kapak kapatınca uyku moduna geçmemeli.**
+
+Sebebi: Fiyat verisini çeken ingestion servisi (WebSocket bağlantısı) bilgisayar uyku moduna girdiğinde bağlantısı **"zombi" hale gelir** — yani bağlantı görünüşte açık kalır ama gerçekte hiç veri akmaz, ve sistem bunu uzun süre (saatler) fark etmeyebilir. Bu süre boyunca sinyal motoru bayat/donmuş fiyatla "çalışıyormuş gibi" davranır, ama gerçekte hiçbir yeni sinyal veya doğru TP/SL kontrolü yapılmaz.
+
+Bunu önlemek için GNOME'da (CachyOS/Arch) şu ayarlar yapılmalı:
+
+```bash
+# Boşta kalma nedeniyle uykuya geçmeyi kapat
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
+gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-type 'nothing'
+
+# Kapak kapatma nedeniyle uykuya geçmeyi kapat (sudo gerektirir)
+sudo sed -i 's/^#HandleLidSwitch=suspend/HandleLidSwitch=ignore/' /etc/systemd/logind.conf
+sudo systemctl restart systemd-logind
+```
+
+Doğrulama:
+```bash
+gsettings get org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type   # 'nothing' dönmeli
+busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager HandleLidSwitch   # s "ignore" dönmeli
+```
+
+**Not:** `systemctl restart systemd-logind` grafik oturumunu (masaüstü) kısa süreliğine yeniden başlatabilir — normal ve zararsız bir yan etki, endişelenme.
+
+Ekranın kararması (screensaver, ör. 5 dk sonra) sorun değil — sadece görsel, arka plandaki servisler (ingestion/scheduler) bundan etkilenmez, çalışmaya devam eder.
+
+### Servislerin Sürekli/Kalıcı Çalışması (systemd)
+
+Sistem üç `systemd --user` servisi olarak çalışacak şekilde kurulmalı — böylece bilgisayar yeniden başlasa bile elle hiçbir şey çalıştırman gerekmez:
+
+| Servis | Görevi |
+|---|---|
+| `xauusd-ingestion` | Twelve Data WebSocket → Redis/Postgres (fiyat verisi) |
+| `xauusd-scheduler` | `candles:aggregate`, `signals:process`, `strategies:optimize` (her dakika/gece) |
+| `xauusd-web` | Laravel web arayüzü (`127.0.0.1:8000`) |
+
+Servis dosyaları `~/.config/systemd/user/` altında bulunur. Reboot sonrası da otomatik başlamaları için:
+
+```bash
+systemctl --user enable xauusd-ingestion xauusd-scheduler xauusd-web
+loginctl enable-linger $USER   # kullanıcı oturum açmasa bile servisler ayakta kalsın diye ŞART
+```
+
+Durumu kontrol etmek için:
+```bash
+systemctl --user status xauusd-ingestion xauusd-scheduler xauusd-web
+```
+
+Üçü de `active (running)` göstermeli. Loglara bakmak için:
+```bash
+journalctl --user -u xauusd-ingestion -f
+journalctl --user -u xauusd-scheduler -f
+```
+
 ---
 
 ## 📁 Proje Yapısı
