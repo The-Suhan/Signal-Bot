@@ -6,6 +6,20 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+        <!-- Tema (dark/light) — CSS/Vue yüklenmeden ÖNCE, senkron olarak
+             uygulanır ki sayfa yanlış temayla bir anlığına görünüp
+             (FOUC) sonra değişmesin. Kaynak: localStorage'da kullanıcının
+             manuel seçimi varsa o, yoksa işletim sistemi tercihi
+             (prefers-color-scheme). bkz. resources/js/composables/useDarkMode.js -->
+        <script>
+            (function () {
+                var stored = localStorage.getItem('theme');
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var isDark = stored ? stored === 'dark' : prefersDark;
+                document.documentElement.classList.toggle('dark', isDark);
+            })();
+        </script>
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
