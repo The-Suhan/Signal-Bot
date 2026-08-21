@@ -10,6 +10,7 @@ use App\Strategies\CandleSeries;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 #[Signature('strategies:optimize
     {--symbol=XAUUSD}
@@ -43,7 +44,15 @@ class OptimizeStrategies extends Command
         $series = CandleSeries::fromCollection($candles);
 
         $rows = [];
-        $strategies = Strategy::all();
+        // optimization_enabled=false olan stratejiler (örn. tutarsız/negatif
+        // edge nedeniyle havuzdan çıkarılan RSI Divergence) hiç backtest
+        // edilmez ve kazanamaz — bkz. 2026-08-21 performans analizi.
+        $strategies = Strategy::where('optimization_enabled', true)->get();
+
+        $excluded = Strategy::where('optimization_enabled', false)->pluck('name');
+        if ($excluded->isNotEmpty()) {
+            $this->line('Havuz dışı (optimization_enabled=false): '.$excluded->implode(', '));
+        }
 
         foreach ($strategies as $strategy) {
             $result = $engine->run($strategy->makeInstance(), $series);
@@ -78,8 +87,22 @@ class OptimizeStrategies extends Command
 
         $winner = $this->pickWinner($rows);
 
+        // Scheduler bu komutun konsol çıktısını /dev/null'a yönlendiriyor —
+        // bu yüzden "neden bu strateji seçildi/seçilmedi" kalıcı olarak
+        // SADECE burada, Log::info ile kaydediliyor (08-18 gecesi hangi
+        // stratejinin neden aktif olduğunun logdan tespit edilemediği olay
+        // sonrası eklendi).
+        $summary = collect($rows)->map(fn ($r) => sprintf(
+            '%s(sinyal=%d,exp=%.4f%s)',
+            $r['strategy']->name,
+            $r['result']->totalSignals,
+            $r['result']->expectancy,
+            $r['eligible'] ? '' : ',yetersiz'
+        ))->implode(' | ');
+
         if (! $winner) {
             $this->warn('Hiçbir strateji asgari sinyal eşiğini geçemedi — mevcut aktif strateji değiştirilmedi.');
+            Log::info('strategies:optimize: kazanan yok (asgari sinyal eşiği geçilemedi), aktif strateji değişmedi. Havuz dışı: '.($excluded->implode(', ') ?: '(yok)')." Sonuçlar: {$summary}");
 
             return self::SUCCESS;
         }
@@ -95,6 +118,16 @@ class OptimizeStrategies extends Command
             $winner['result']->totalSignals
         ));
 
+        Log::info(sprintf(
+            'strategies:optimize: 🏆 %s kazandı (expectancy=%.4fR, winrate=%.2f%%, %d sinyal) -> is_active=true. Havuz dışı: %s. Tüm sonuçlar: %s',
+            $winner['strategy']->name,
+            $winner['result']->expectancy,
+            $winner['result']->winRate,
+            $winner['result']->totalSignals,
+            $excluded->implode(', ') ?: '(yok)',
+            $summary
+        ));
+
         return self::SUCCESS;
     }
 
@@ -104,7 +137,12 @@ class OptimizeStrategies extends Command
         foreach (config('strategies.registry', []) as $entry) {
             Strategy::firstOrCreate(
                 ['class' => $entry['class']],
-                ['name' => $entry['name'], 'parameters' => $entry['parameters'], 'is_active' => false]
+                [
+                    'name' => $entry['name'],
+                    'parameters' => $entry['parameters'],
+                    'is_active' => false,
+                    'optimization_enabled' => $entry['optimization_enabled'] ?? true,
+                ]
             );
         }
     }

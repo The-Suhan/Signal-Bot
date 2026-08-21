@@ -51,6 +51,30 @@ class SignalController extends Controller
                 'month' => $stats->summary(...$stats->periodRange('month')),
                 'allTime' => $stats->summary(...$stats->periodRange('all')),
             ],
+
+            // Bilgi amaçlı: son canlı parametre değişikliğinden (bkz.
+            // config/strategies.php) önceki/sonraki dönemin performansını
+            // ayrı ayrı gösterir — "yeni parametreler gerçekten iyileşme mi
+            // getirdi" sorusunu canlı veriyle takip edebilmek için.
+            'parameterComparison' => fn () => $this->parameterComparison($stats),
         ]);
+    }
+
+    private function parameterComparison(SignalStats $stats): ?array
+    {
+        $changedAt = config('strategies.last_parameter_change_at');
+
+        if (! $changedAt) {
+            return null;
+        }
+
+        $cutoff = \Illuminate\Support\Carbon::parse($changedAt, 'UTC');
+
+        return [
+            'changed_at' => $cutoff->toIso8601String(),
+            'summary' => config('strategies.last_parameter_change_summary'),
+            'before' => $stats->summary(null, $cutoff),
+            'after' => $stats->summary($cutoff, null),
+        ];
     }
 }

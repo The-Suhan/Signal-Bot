@@ -8,6 +8,7 @@ use App\Strategies\CandleSeries;
 use App\Models\Candle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -54,6 +55,10 @@ class StrategyController extends Controller
             'parameters' => 'nullable|array',
         ]);
 
+        $wasActive = $strategy->is_active;
+        $oldParameters = $strategy->parameters;
+        $user = $request->user();
+
         // Aynı anda tek strateji aktif olsun kuralı manuel panelde de korunuyor
         // (walk-forward optimizasyonunun beklediği invaryant ile tutarlı).
         if ($validated['is_active']) {
@@ -64,6 +69,30 @@ class StrategyController extends Controller
             'is_active' => $validated['is_active'],
             'parameters' => $validated['parameters'] ?? $strategy->parameters,
         ]);
+
+        // Walk-forward optimizasyonun otomatik seçimleriyle manuel panel
+        // müdahalelerini birbirinden ayırt edebilmek için (bkz. 08-18 gecesi
+        // aktivasyon geçmişinin logdan tespit edilemediği olay) her manuel
+        // değişiklik kim/ne zaman/ne yaptı bilgisiyle kalıcı olarak loglanır.
+        if ($wasActive !== $validated['is_active']) {
+            Log::info(sprintf(
+                'Manuel panel: %s -> is_active=%s (kullanıcı: %s, önceki: %s)',
+                $strategy->name,
+                $validated['is_active'] ? 'true' : 'false',
+                $user?->email ?? 'bilinmiyor',
+                $wasActive ? 'true' : 'false'
+            ));
+        }
+
+        if ($validated['parameters'] && $validated['parameters'] !== $oldParameters) {
+            Log::info(sprintf(
+                'Manuel panel: %s parametreleri değişti (kullanıcı: %s): %s -> %s',
+                $strategy->name,
+                $user?->email ?? 'bilinmiyor',
+                json_encode($oldParameters),
+                json_encode($validated['parameters'])
+            ));
+        }
 
         return back()->with('success', "{$strategy->name} güncellendi.");
     }

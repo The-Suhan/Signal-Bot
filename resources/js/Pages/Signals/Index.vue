@@ -9,6 +9,7 @@ const props = defineProps({
     historySignals: { type: Object, required: true },
     filters: { type: Object, required: true },
     stats: { type: Object, required: true },
+    parameterComparison: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -118,6 +119,51 @@ function fmtWinRate(v) {
                             :class="stats[key].total_pips >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
                         >
                             {{ fmtPips(stats[key].total_pips) }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parametre değişikliği öncesi/sonrası karşılaştırma (bilgi amaçlı) -->
+                <div
+                    v-if="parameterComparison"
+                    class="overflow-hidden rounded-lg bg-white shadow-sm dark:bg-slate-800"
+                >
+                    <div class="border-b border-gray-200 px-6 py-4 dark:border-slate-700">
+                        <h3 class="font-semibold text-gray-900 dark:text-gray-100">
+                            Parametre Değişikliği Karşılaştırması
+                        </h3>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {{ fmtDate(parameterComparison.changed_at) }} itibarıyla: {{ parameterComparison.summary }}
+                            — bilgi amaçlı, sadece gözlem içindir.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2">
+                        <div
+                            v-for="(card, key) in { before: 'Eski Dönem (değişiklikten önce)', after: 'Yeni Dönem (değişiklikten sonra)' }"
+                            :key="key"
+                            class="rounded-lg p-4"
+                            :class="key === 'after' ? 'bg-indigo-50 dark:bg-indigo-500/10' : 'bg-gray-50 dark:bg-slate-900/50'"
+                        >
+                            <div class="text-sm text-gray-500 dark:text-gray-400">{{ card }}</div>
+                            <div class="mt-2 flex items-baseline gap-2">
+                                <span class="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                                    {{ fmtWinRate(parameterComparison[key].win_rate) }}
+                                </span>
+                                <span class="text-xs text-gray-400 dark:text-gray-500">win rate</span>
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                                <span>{{ parameterComparison[key].wins }} kazanç / {{ parameterComparison[key].losses }} kayıp</span>
+                                <span v-if="parameterComparison[key].expired > 0">{{ parameterComparison[key].expired }} süresi doldu</span>
+                            </div>
+                            <div
+                                class="mt-2 text-sm font-medium"
+                                :class="parameterComparison[key].total_pips >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
+                            >
+                                {{ fmtPips(parameterComparison[key].total_pips) }}
+                            </div>
+                            <p v-if="parameterComparison[key].total === 0" class="mt-2 text-xs text-gray-400 dark:text-gray-500">
+                                Bu dönemde henüz kapanmış sinyal yok.
+                            </p>
                         </div>
                     </div>
                 </div>

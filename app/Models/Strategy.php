@@ -14,11 +14,13 @@ class Strategy extends Model
         'class',
         'parameters',
         'is_active',
+        'optimization_enabled',
     ];
 
     protected $casts = [
         'parameters' => 'array',
         'is_active' => 'boolean',
+        'optimization_enabled' => 'boolean',
     ];
 
     public function backtests()
